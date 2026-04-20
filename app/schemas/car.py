@@ -139,6 +139,7 @@ class CarUpdate(BaseModel):
 class CarOut(BaseModel):
     id: str
     brand_id: str
+    brand_name: str | None = None
     name: str
     category: CarCategory
     description: str

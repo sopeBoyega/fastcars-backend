@@ -25,6 +25,7 @@ def serialize_car(document: dict) -> CarOut:
     return CarOut(
         id=data["_id"],
         brand_id=str(data["brand_id"]),
+        brand_name=data.get("brand_name"),
         name=data["name"],
         category=data["category"],
         description=data["description"],
@@ -94,6 +95,23 @@ async def get_car(car_id: str, db=Depends(get_db)):
 async def list_brands(db=Depends(get_db)):
     brands = await db.brands.find({}).sort("name", 1).to_list(length=200)
     return [serialize_brand(brand) for brand in brands]
+
+
+@admin_router.get("/", response_model=list[CarOut], dependencies=[Depends(require_admin)])
+async def list_admin_cars(db=Depends(get_db)):
+    cars = await db.cars.find({}).sort("created_at", -1).to_list(length=500)
+    brand_ids = [car.get("brand_id") for car in cars if car.get("brand_id") is not None]
+    brands = await db.brands.find({"_id": {"$in": brand_ids}}).to_list(length=500) if brand_ids else []
+    brand_map = {brand["_id"]: brand for brand in brands}
+
+    enriched_cars = []
+    for car in cars:
+        enriched = car.copy()
+        brand = brand_map.get(car.get("brand_id"))
+        if brand:
+            enriched["brand_name"] = brand.get("name")
+        enriched_cars.append(enriched)
+    return [serialize_car(car) for car in enriched_cars]
 
 
 @admin_router.post("/brands", response_model=BrandOut, status_code=status.HTTP_201_CREATED)

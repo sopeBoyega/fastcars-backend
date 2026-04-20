@@ -74,6 +74,43 @@ class ResetPasswordRequest(BaseModel):
         return value
 
 
+class UserUpdate(BaseModel):
+    name: str | None = None
+    phone: str | None = None
+
+    @field_validator("name", "phone")
+    @classmethod
+    def strip_optional_text_fields(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("Field must not be empty")
+        return value
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+    @field_validator("current_password")
+    @classmethod
+    def validate_current_password(cls, value: str) -> str:
+        if not value:
+            raise ValueError("Current password is required")
+        return value
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password_length(cls, value: str) -> str:
+        if len(value) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        password_bytes = value.encode("utf-8")
+        if len(password_bytes) > 72:
+            raise ValueError("Password must not be longer than 72 bytes")
+        return value
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 

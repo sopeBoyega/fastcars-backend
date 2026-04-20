@@ -33,12 +33,15 @@ class BookingCreate(BaseModel):
 
 
 class BookingOut(BaseModel):
-    id: str = Field(alias="_id")
-    user_id: str
-    car_id: str
+    booking_ref: str = Field(alias="_id")
+    customer: str | None = Field(alias="user_name")
+    car_name: str | None = None
     start_date: date
     end_date: date
-    total_days: int
-    total_price: float
     status: BookingStatus
+    total_cost: float = Field(alias="total_price")
+    user_id: str
+    user_email: str | None = None
+    car_id: str
+    total_days: int
     created_at: datetime
