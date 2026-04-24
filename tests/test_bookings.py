@@ -103,6 +103,7 @@ class FakeCollection:
 class FakeDB:
     def __init__(self):
         self.users = FakeCollection()
+        self.pending_registrations = FakeCollection()
         self.cars = FakeCollection()
         self.bookings = FakeCollection()
         self.brands = FakeCollection()
@@ -135,6 +136,7 @@ def seed_user(fake_db: FakeDB) -> dict:
         "email": "jane@example.com",
         "phone": "09012345678",
         "password_hash": hash_password("topsecret1"),
+        "is_verified": True,
         "role": "user",
     }
     fake_db.users.records.append(user)

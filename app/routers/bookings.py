@@ -3,7 +3,11 @@ from datetime import date, datetime, time, timezone
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
 from app.auth.dependencies import get_current_user, require_admin
-from app.core.email import queue_email
+from app.core.email import (
+    build_booking_confirmed_email,
+    build_booking_received_email,
+    queue_email,
+)
 from app.db import get_db, parse_object_id, stringify_id, utcnow
 from app.schemas.booking import BookingCreate, BookingOut, BookingStatus
 
@@ -70,6 +74,10 @@ def calculate_total_days(start_date: date, end_date: date) -> int:
     return (end_date - start_date).days + 1
 
 
+def format_booking_date(value: date | datetime) -> str:
+    return to_booking_date(value).strftime("%b %d, %Y")
+
+
 async def has_booking_conflict(db, car_id, start_date: date, end_date: date) -> bool:
     query = {
         "car_id": car_id,
@@ -113,11 +121,19 @@ async def create_booking(
     result = await db.bookings.insert_one(document)
     booking = await db.bookings.find_one({"_id": result.inserted_id})
     booking = await enrich_booking(db, booking)
+    email_content = build_booking_received_email(
+        name=current_user["name"],
+        car_name=car["name"],
+        start_date=format_booking_date(payload.start_date),
+        end_date=format_booking_date(payload.end_date),
+        total_price=f"${document['total_price']:.2f}",
+    )
     queue_email(
         background_tasks,
         subject="Fast Cars booking received",
         to_email=current_user["email"],
-        body=f"Your booking for {car['name']} is pending confirmation.",
+        body=email_content.text,
+        html_body=email_content.html,
     )
     return serialize_booking(booking)
 
@@ -180,11 +196,18 @@ async def confirm_booking(
     booking = await enrich_booking(db, booking)
     user = await db.users.find_one({"_id": booking["user_id"]})
     if user:
+        email_content = build_booking_confirmed_email(
+            name=user["name"],
+            car_name=booking.get("car_name", "your selected vehicle"),
+            start_date=format_booking_date(booking["start_date"]),
+            end_date=format_booking_date(booking["end_date"]),
+        )
         queue_email(
             background_tasks,
             subject="Fast Cars booking confirmed",
             to_email=user["email"],
-            body="Your booking has been confirmed.",
+            body=email_content.text,
+            html_body=email_content.html,
         )
     return serialize_booking(booking)
 

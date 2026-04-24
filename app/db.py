@@ -6,11 +6,16 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.core.config import settings
 
-client = AsyncIOMotorClient(settings.MONGO_URI)
+client = AsyncIOMotorClient(
+    settings.MONGO_URI,
+    tz_aware=True,
+    tzinfo=timezone.utc,
+)
 db = client[settings.MONGO_DB_NAME]
 
 REQUIRED_COLLECTIONS = (
     "users",
+    "pending_registrations",
     "brands",
     "cars",
     "bookings",
@@ -54,6 +59,8 @@ async def ensure_database_setup() -> None:
             await db.create_collection(collection_name)
 
     await db.users.create_index("email", unique=True)
+    await db.pending_registrations.create_index("email", unique=True)
+    await db.pending_registrations.create_index("expires_at", expireAfterSeconds=0)
     await db.brands.create_index("name", unique=True)
     await db.subscribers.create_index("email", unique=True)
     await db.bookings.create_index(

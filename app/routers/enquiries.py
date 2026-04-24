@@ -1,7 +1,12 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
 from app.auth.dependencies import require_admin
-from app.core.email import queue_email
+from app.core.email import (
+    build_admin_enquiry_email,
+    build_admin_subscription_email,
+    build_subscription_confirmation_email,
+    queue_email,
+)
 from app.core.config import settings
 from app.db import get_db, parse_object_id, stringify_id, utcnow
 from app.schemas.enquiry import EnquiryCreate, EnquiryOut, EnquiryStatus, EnquiryUpdate
@@ -41,11 +46,18 @@ async def create_enquiry(payload: EnquiryCreate, background_tasks: BackgroundTas
     document["created_at"] = utcnow()
     result = await db.enquiries.insert_one(document)
     enquiry = await db.enquiries.find_one({"_id": result.inserted_id})
+    email_content = build_admin_enquiry_email(
+        name=payload.name,
+        email_address=payload.email,
+        phone=payload.phone,
+        message=payload.message,
+    )
     queue_email(
         background_tasks,
         subject="New Fast Cars enquiry",
-        to_email=settings.EMAIL_USER,
-        body=f"{payload.name} sent an enquiry: {payload.message}",
+        to_email=settings.ADMIN_NOTIFICATION_EMAIL,
+        body=email_content.text,
+        html_body=email_content.html,
     )
     return serialize_enquiry(enquiry)
 
@@ -85,8 +97,13 @@ async def delete_enquiry(enquiry_id: str, db=Depends(get_db)):
     await db.enquiries.delete_one({"_id": object_id})
 
 
-@router.post("/api/subscribe", response_model=SubscriptionOut, status_code=status.HTTP_201_CREATED)
-async def subscribe(payload: SubscriptionCreate, db=Depends(get_db)):
+@router.post("/api/newsletter/subscribe", response_model=SubscriptionOut, status_code=status.HTTP_201_CREATED)
+@router.post("/api/subscribe", response_model=SubscriptionOut, status_code=status.HTTP_201_CREATED, include_in_schema=False)
+async def subscribe(
+    payload: SubscriptionCreate,
+    background_tasks: BackgroundTasks,
+    db=Depends(get_db),
+):
     existing = await db.subscribers.find_one({"email": payload.email})
     if existing:
         return serialize_subscription(existing)
@@ -95,6 +112,22 @@ async def subscribe(payload: SubscriptionCreate, db=Depends(get_db)):
     document["created_at"] = utcnow()
     result = await db.subscribers.insert_one(document)
     subscription = await db.subscribers.find_one({"_id": result.inserted_id})
+    subscriber_email = build_subscription_confirmation_email(payload.email)
+    admin_email = build_admin_subscription_email(payload.email)
+    queue_email(
+        background_tasks,
+        subject="Welcome to the Fast Cars newsletter",
+        to_email=payload.email,
+        body=subscriber_email.text,
+        html_body=subscriber_email.html,
+    )
+    queue_email(
+        background_tasks,
+        subject="New Fast Cars newsletter subscriber",
+        to_email=settings.ADMIN_NOTIFICATION_EMAIL,
+        body=admin_email.text,
+        html_body=admin_email.html,
+    )
     return serialize_subscription(subscription)
 
 

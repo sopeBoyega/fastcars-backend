@@ -3,7 +3,6 @@ uvicorn[standard]
 motor
 python-jose[cryptography]
 passlib
-yagmail
 cloudinary
 python-multipart
 python-dotenv

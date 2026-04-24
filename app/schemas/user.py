@@ -74,6 +74,51 @@ class ResetPasswordRequest(BaseModel):
         return value
 
 
+class RegistrationStartResponse(BaseModel):
+    message: str
+    email: str
+    expires_in_minutes: int
+
+
+class VerifyRegistrationOtpRequest(BaseModel):
+    email: str
+    otp: str
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        value = value.strip().lower()
+        if "@" not in value or value.startswith("@") or value.endswith("@"):
+            raise ValueError("Enter a valid email address")
+        return value
+
+    @field_validator("otp")
+    @classmethod
+    def validate_otp(cls, value: str) -> str:
+        value = value.strip()
+        if not value.isdigit():
+            raise ValueError("OTP must contain only numbers")
+        if len(value) < 4 or len(value) > 8:
+            raise ValueError("OTP must be between 4 and 8 digits")
+        return value
+
+
+class ResendRegistrationOtpRequest(BaseModel):
+    email: str
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        value = value.strip().lower()
+        if "@" not in value or value.startswith("@") or value.endswith("@"):
+            raise ValueError("Enter a valid email address")
+        return value
+
+
+class MessageResponse(BaseModel):
+    message: str
+
+
 class UserUpdate(BaseModel):
     name: str | None = None
     phone: str | None = None

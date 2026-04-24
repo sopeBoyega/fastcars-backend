@@ -14,6 +14,7 @@ def seed_admin(fake_db: FakeDB) -> dict:
         "email": "admin@example.com",
         "phone": "09000000000",
         "password_hash": hash_password("adminpass1"),
+        "is_verified": True,
         "role": "admin",
     }
     fake_db.users.records.append(admin)
@@ -165,6 +166,7 @@ async def test_admin_can_get_user_detail():
             "email": "jane@example.com",
             "phone": "09012345678",
             "password_hash": hash_password("topsecret1"),
+            "is_verified": True,
             "role": "user",
         }
     )

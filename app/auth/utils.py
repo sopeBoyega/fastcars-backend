@@ -1,6 +1,9 @@
-from passlib.context import CryptContext
-from jose import jwt
+import secrets
 from datetime import datetime, timedelta, timezone
+
+from jose import jwt
+from passlib.context import CryptContext
+
 from app.core.config import settings
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
@@ -35,3 +38,9 @@ def decode_token(token: str) -> dict:
         settings.SECRET_KEY,
         algorithms=[settings.JWT_ALGORITHM],
     )
+
+
+def generate_otp(length: int | None = None) -> str:
+    otp_length = length or settings.REGISTRATION_OTP_LENGTH
+    upper_bound = 10**otp_length
+    return f"{secrets.randbelow(upper_bound):0{otp_length}d}"
